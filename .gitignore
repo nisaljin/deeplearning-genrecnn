@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Local experiment artifacts
+outputs/
+.cache/
+
+# FMA datasets (large files)
+fma_large/
+fma_metadata/
