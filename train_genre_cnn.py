@@ -13,6 +13,7 @@ This script is designed for reproducible coursework experiments:
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import json
 import math
 import random
@@ -88,8 +89,12 @@ def choose_device(device_arg: str) -> torch.device:
     if device_arg == "cpu":
         return torch.device("cpu")
     if device_arg == "cuda":
+        if not torch.cuda.is_available():
+            raise ValueError("Requested --device cuda, but CUDA is not available.")
         return torch.device("cuda")
     if device_arg == "mps":
+        if not torch.backends.mps.is_available():
+            raise ValueError("Requested --device mps, but MPS is not available.")
         return torch.device("mps")
 
     if torch.cuda.is_available():
@@ -97,6 +102,33 @@ def choose_device(device_arg: str) -> torch.device:
     if torch.backends.mps.is_available():
         return torch.device("mps")
     return torch.device("cpu")
+
+
+def optimize_runtime(device: torch.device) -> Dict[str, object]:
+    use_amp = False
+    amp_dtype = None
+    use_channels_last = False
+
+    # Global matmul optimization for modern PyTorch backends.
+    torch.set_float32_matmul_precision("high")
+
+    if device.type == "cuda":
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cudnn.benchmark = True
+        use_amp = True
+        amp_dtype = torch.float16
+        use_channels_last = True
+    elif device.type == "mps":
+        use_amp = False
+        amp_dtype = None
+        use_channels_last = True
+
+    return {
+        "use_amp": use_amp,
+        "amp_dtype": amp_dtype,
+        "use_channels_last": use_channels_last,
+    }
 
 
 def track_path(audio_dir: Path, track_id: int) -> Path:
@@ -307,6 +339,10 @@ def run_epoch(
     criterion: nn.Module,
     optimizer: optim.Optimizer | None,
     device: torch.device,
+    amp_enabled: bool,
+    amp_dtype: torch.dtype | None,
+    scaler: torch.amp.GradScaler | None,
+    use_channels_last: bool,
 ) -> Tuple[float, List[int], List[int]]:
     train_mode = optimizer is not None
     model.train(train_mode)
@@ -317,16 +353,29 @@ def run_epoch(
 
     with torch.set_grad_enabled(train_mode):
         for xb, yb in loader:
-            xb = xb.to(device)
-            yb = yb.to(device)
+            if use_channels_last:
+                xb = xb.contiguous(memory_format=torch.channels_last)
+            xb = xb.to(device, non_blocking=(device.type == "cuda"))
+            yb = yb.to(device, non_blocking=(device.type == "cuda"))
 
-            logits = model(xb)
-            loss = criterion(logits, yb)
+            amp_ctx = (
+                torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_enabled)
+                if amp_enabled
+                else nullcontext()
+            )
+            with amp_ctx:
+                logits = model(xb)
+                loss = criterion(logits, yb)
 
             if train_mode:
                 optimizer.zero_grad(set_to_none=True)
-                loss.backward()
-                optimizer.step()
+                if scaler is not None:
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    optimizer.step()
 
             total_loss += float(loss.item()) * xb.size(0)
             preds = torch.argmax(logits, dim=1)
@@ -391,6 +440,8 @@ def main() -> None:
 
     set_seed(args.seed)
     device = choose_device(args.device)
+    runtime = optimize_runtime(device)
+    scaler = torch.amp.GradScaler("cuda", enabled=(runtime["use_amp"] and device.type == "cuda"))
 
     records = load_records(args.metadata_path, args.audio_dir)
     if not records:
@@ -407,6 +458,14 @@ def main() -> None:
     test_records = maybe_limit(test_records, args.max_test, seed=args.seed + 2)
 
     print(f"Using device: {device}")
+    print(
+        "Runtime optimizations:",
+        {
+            "amp": runtime["use_amp"],
+            "amp_dtype": str(runtime["amp_dtype"]),
+            "channels_last": runtime["use_channels_last"],
+        },
+    )
     print(f"Classes ({len(genres)}): {genres}")
     print(f"Samples: train={len(train_records)} val={len(val_records)} test={len(test_records)}")
 
@@ -447,29 +506,36 @@ def main() -> None:
         cache_dir=args.cache_dir,
     )
 
+    loader_kwargs = {
+        "num_workers": args.num_workers,
+        "pin_memory": (device.type == "cuda"),
+    }
+    if args.num_workers > 0:
+        loader_kwargs["persistent_workers"] = True
+        loader_kwargs["prefetch_factor"] = 2
+
     train_loader = DataLoader(
         train_ds,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=args.num_workers,
-        pin_memory=(device.type == "cuda"),
+        **loader_kwargs,
     )
     val_loader = DataLoader(
         val_ds,
         batch_size=args.batch_size,
         shuffle=False,
-        num_workers=args.num_workers,
-        pin_memory=(device.type == "cuda"),
+        **loader_kwargs,
     )
     test_loader = DataLoader(
         test_ds,
         batch_size=args.batch_size,
         shuffle=False,
-        num_workers=args.num_workers,
-        pin_memory=(device.type == "cuda"),
+        **loader_kwargs,
     )
 
     model = GenreCNN(num_classes=len(genres)).to(device)
+    if runtime["use_channels_last"]:
+        model = model.to(memory_format=torch.channels_last)
     weights = class_weights(train_records, label_to_idx, device)
     criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -485,8 +551,28 @@ def main() -> None:
     print("Majority baseline (test):", baseline_test)
 
     for epoch in range(1, args.epochs + 1):
-        train_loss, y_tr, p_tr = run_epoch(model, train_loader, criterion, optimizer, device)
-        val_loss, y_va, p_va = run_epoch(model, val_loader, criterion, optimizer=None, device=device)
+        train_loss, y_tr, p_tr = run_epoch(
+            model,
+            train_loader,
+            criterion,
+            optimizer,
+            device,
+            amp_enabled=bool(runtime["use_amp"]),
+            amp_dtype=runtime["amp_dtype"],
+            scaler=scaler,
+            use_channels_last=bool(runtime["use_channels_last"]),
+        )
+        val_loss, y_va, p_va = run_epoch(
+            model,
+            val_loader,
+            criterion,
+            optimizer=None,
+            device=device,
+            amp_enabled=bool(runtime["use_amp"]),
+            amp_dtype=runtime["amp_dtype"],
+            scaler=None,
+            use_channels_last=bool(runtime["use_channels_last"]),
+        )
 
         train_metrics = compute_metrics(y_tr, p_tr, num_classes=len(genres))
         val_metrics = compute_metrics(y_va, p_va, num_classes=len(genres))
@@ -536,7 +622,17 @@ def main() -> None:
     ckpt = torch.load(best_ckpt_path, map_location=device)
     model.load_state_dict(ckpt["model_state_dict"])
 
-    test_loss, y_te, p_te = run_epoch(model, test_loader, criterion, optimizer=None, device=device)
+    test_loss, y_te, p_te = run_epoch(
+        model,
+        test_loader,
+        criterion,
+        optimizer=None,
+        device=device,
+        amp_enabled=bool(runtime["use_amp"]),
+        amp_dtype=runtime["amp_dtype"],
+        scaler=None,
+        use_channels_last=bool(runtime["use_channels_last"]),
+    )
     test_metrics = compute_metrics(y_te, p_te, num_classes=len(genres))
 
     print(f"Test loss: {test_loss:.4f}")

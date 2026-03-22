@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import json
 from pathlib import Path
 
@@ -70,14 +71,41 @@ def choose_device(device_arg: str) -> torch.device:
     if device_arg == "cpu":
         return torch.device("cpu")
     if device_arg == "cuda":
+        if not torch.cuda.is_available():
+            raise ValueError("Requested --device cuda, but CUDA is not available.")
         return torch.device("cuda")
     if device_arg == "mps":
+        if not torch.backends.mps.is_available():
+            raise ValueError("Requested --device mps, but MPS is not available.")
         return torch.device("mps")
     if torch.cuda.is_available():
         return torch.device("cuda")
     if torch.backends.mps.is_available():
         return torch.device("mps")
     return torch.device("cpu")
+
+
+def optimize_runtime(device: torch.device) -> dict:
+    torch.set_float32_matmul_precision("high")
+    use_amp = False
+    amp_dtype = None
+    use_channels_last = False
+
+    if device.type == "cuda":
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cudnn.benchmark = True
+        use_amp = True
+        amp_dtype = torch.float16
+        use_channels_last = True
+    elif device.type == "mps":
+        use_channels_last = True
+
+    return {
+        "use_amp": use_amp,
+        "amp_dtype": amp_dtype,
+        "use_channels_last": use_channels_last,
+    }
 
 
 def build_feature(
@@ -120,12 +148,15 @@ def build_feature(
 def main() -> None:
     args = parse_args()
     device = choose_device(args.device)
+    runtime = optimize_runtime(device)
 
     ckpt = torch.load(args.checkpoint, map_location=device)
     label_to_idx = ckpt["label_to_idx"]
     idx_to_label = {i: lbl for lbl, i in label_to_idx.items()}
 
     model = GenreCNN(num_classes=len(label_to_idx)).to(device)
+    if runtime["use_channels_last"]:
+        model = model.to(memory_format=torch.channels_last)
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
 
@@ -136,11 +167,20 @@ def main() -> None:
         n_mels=args.n_mels,
         n_fft=args.n_fft,
         hop_length=args.hop_length,
-    ).to(device)
+    )
+    if runtime["use_channels_last"]:
+        x = x.contiguous(memory_format=torch.channels_last)
+    x = x.to(device, non_blocking=(device.type == "cuda"))
 
-    with torch.no_grad():
-        logits = model(x)
-        probs = torch.softmax(logits, dim=1).squeeze(0)
+    amp_ctx = (
+        torch.autocast(device_type=device.type, dtype=runtime["amp_dtype"], enabled=runtime["use_amp"])
+        if runtime["use_amp"]
+        else nullcontext()
+    )
+    with torch.inference_mode():
+        with amp_ctx:
+            logits = model(x)
+            probs = torch.softmax(logits, dim=1).squeeze(0)
 
     k = min(args.top_k, probs.shape[0])
     top_probs, top_idx = torch.topk(probs, k=k)

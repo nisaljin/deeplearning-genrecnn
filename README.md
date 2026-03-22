@@ -9,12 +9,30 @@ Expected local structure:
 - `fma_large/<###>/<######>.mp3`
 - `fma_metadata/tracks.csv`
 
-## Setup
+## Environment Setup (venv)
+
+Use a virtual environment for all project commands.
+
+### Option A: One-command setup script
 
 ```bash
-python -m venv .venv
+bash scripts/setup_venv.sh
 source .venv/bin/activate
+```
+
+### Option B: Manual setup
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
+```
+
+To deactivate:
+
+```bash
+deactivate
 ```
 
 ## Quick Smoke Run
@@ -50,6 +68,7 @@ python predict_genre.py fma_large/002/002003.mp3 \
 
 - Uses official FMA split from `set.split`: `training` / `validation` / `test`.
 - Uses only `set.subset == large` and non-null `track.genre_top`.
+- Auto-detects accelerator with `--device auto` (prefers `cuda`, then `mps`, then `cpu`) and applies backend-specific runtime optimizations.
 - Saves:
   - `best_model.pt`
   - `history.csv` and `history.json`
