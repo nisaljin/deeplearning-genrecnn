@@ -56,6 +56,29 @@ python train_genre_cnn.py \
   --seed 42
 ```
 
+## Precompute Mel Cache (Recommended)
+
+Run once to build mel `.npy` files for all labeled FMA-large tracks:
+
+```bash
+python precompute_mels.py \
+  --cache-dir .cache/mels \
+  --clip-duration 5 \
+  --log-every 500
+```
+
+Then train from cache only (no MP3 decode during training):
+
+```bash
+python train_genre_cnn.py \
+  --clip-duration 5 \
+  --cache-dir .cache/mels \
+  --require-cache \
+  --epochs 25 --batch-size 32 --num-workers 4 \
+  --output-dir outputs/full_run_seed42_cache_only \
+  --seed 42
+```
+
 ## Inference Demo (Deployment Artifact)
 
 ```bash

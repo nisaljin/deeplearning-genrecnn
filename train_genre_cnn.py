@@ -17,6 +17,7 @@ from contextlib import nullcontext
 import json
 import math
 import random
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
@@ -64,6 +65,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--metadata-path", type=Path, default=Path("fma_metadata/tracks.csv"))
     parser.add_argument("--output-dir", type=Path, default=Path("outputs"))
     parser.add_argument("--cache-dir", type=Path, default=None)
+    parser.add_argument(
+        "--require-cache",
+        action="store_true",
+        help="Fail if a cached mel is missing instead of decoding audio on the fly.",
+    )
 
     parser.add_argument("--sample-rate", type=int, default=22050)
     parser.add_argument("--clip-duration", type=float, default=29.0)
@@ -122,7 +128,8 @@ def optimize_runtime(device: torch.device) -> Dict[str, object]:
     elif device.type == "mps":
         use_amp = False
         amp_dtype = None
-        use_channels_last = True
+        # MPS can throw backward stride/view errors with channels_last tensors.
+        use_channels_last = False
 
     return {
         "use_amp": use_amp,
@@ -171,6 +178,7 @@ class FMAMelDataset(Dataset):
         n_fft: int,
         hop_length: int,
         cache_dir: Path | None,
+        require_cache: bool = False,
     ) -> None:
         self.records = list(records)
         self.audio_dir = audio_dir
@@ -182,6 +190,8 @@ class FMAMelDataset(Dataset):
         self.n_fft = n_fft
         self.hop_length = hop_length
         self.cache_dir = cache_dir
+        self.require_cache = require_cache
+        self.decode_fail_count = 0
 
         if self.cache_dir is not None:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -221,22 +231,44 @@ class FMAMelDataset(Dataset):
 
     def _load_feature(self, rec: TrackRecord) -> np.ndarray:
         audio_path = track_path(self.audio_dir, rec.track_id)
+        cache_path: Path | None = None
 
         if self.cache_dir is not None:
             cache_path = self.cache_dir / self._cache_key(rec.track_id)
             if cache_path.exists():
                 return np.load(cache_path)
+            if self.require_cache:
+                raise FileNotFoundError(
+                    f"Missing cached mel for track {rec.track_id}: {cache_path}. "
+                    "Run precompute_mels.py first or disable --require-cache."
+                )
+        elif self.require_cache:
+            raise ValueError("--require-cache requires --cache-dir.")
 
-        y, _ = librosa.load(
-            str(audio_path),
-            sr=self.sample_rate,
-            mono=True,
-            duration=self.clip_duration,
-            res_type="kaiser_fast",
-        )
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="PySoundFile failed. Trying audioread instead.")
+                warnings.filterwarnings("ignore", message="librosa.core.audio.__audioread_load")
+                y, _ = librosa.load(
+                    str(audio_path),
+                    sr=self.sample_rate,
+                    mono=True,
+                    duration=self.clip_duration,
+                    res_type="kaiser_fast",
+                )
+            if y is None or y.shape[0] == 0:
+                raise ValueError("Decoded empty audio array")
+        except Exception as exc:
+            self.decode_fail_count += 1
+            if self.decode_fail_count <= 10 or self.decode_fail_count % 50 == 0:
+                print(
+                    f"Warning: decode failed for {audio_path} ({exc}); using silence. "
+                    f"[decode_fails={self.decode_fail_count}]"
+                )
+            y = np.zeros(self.target_samples, dtype=np.float32)
         feature = self._feature_from_audio(y)
 
-        if self.cache_dir is not None:
+        if cache_path is not None:
             np.save(cache_path, feature)
 
         return feature
@@ -304,6 +336,27 @@ def maybe_limit(records: List[TrackRecord], max_items: int | None, seed: int) ->
     sampled = records.copy()
     rng.shuffle(sampled)
     return sampled[:max_items]
+
+
+def count_missing_cache(
+    records: Sequence[TrackRecord],
+    cache_dir: Path,
+    sample_rate: int,
+    clip_duration: float,
+    n_mels: int,
+    n_fft: int,
+    hop_length: int,
+) -> Tuple[int, List[int]]:
+    missing_ids: List[int] = []
+    for rec in records:
+        cache_name = (
+            f"{rec.track_id:06d}_sr{sample_rate}_dur{clip_duration}_"
+            f"mel{n_mels}_fft{n_fft}_hop{hop_length}.npy"
+        )
+        cache_path = cache_dir / cache_name
+        if not cache_path.exists():
+            missing_ids.append(rec.track_id)
+    return len(missing_ids), missing_ids[:10]
 
 
 def class_weights(train_records: Sequence[TrackRecord], label_to_idx: Dict[str, int], device: torch.device) -> torch.Tensor:
@@ -437,6 +490,8 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     if args.cache_dir is not None:
         args.cache_dir.mkdir(parents=True, exist_ok=True)
+    if args.require_cache and args.cache_dir is None:
+        raise ValueError("--require-cache needs --cache-dir.")
 
     set_seed(args.seed)
     device = choose_device(args.device)
@@ -456,6 +511,44 @@ def main() -> None:
     train_records = maybe_limit(train_records, args.max_train, seed=args.seed)
     val_records = maybe_limit(val_records, args.max_val, seed=args.seed + 1)
     test_records = maybe_limit(test_records, args.max_test, seed=args.seed + 2)
+
+    if args.require_cache and args.cache_dir is not None:
+        tr_missing_count, tr_missing_preview = count_missing_cache(
+            train_records,
+            args.cache_dir,
+            args.sample_rate,
+            args.clip_duration,
+            args.n_mels,
+            args.n_fft,
+            args.hop_length,
+        )
+        va_missing_count, va_missing_preview = count_missing_cache(
+            val_records,
+            args.cache_dir,
+            args.sample_rate,
+            args.clip_duration,
+            args.n_mels,
+            args.n_fft,
+            args.hop_length,
+        )
+        te_missing_count, te_missing_preview = count_missing_cache(
+            test_records,
+            args.cache_dir,
+            args.sample_rate,
+            args.clip_duration,
+            args.n_mels,
+            args.n_fft,
+            args.hop_length,
+        )
+        total_missing = tr_missing_count + va_missing_count + te_missing_count
+        if total_missing > 0:
+            raise FileNotFoundError(
+                "Cache completeness check failed for --require-cache. "
+                f"Missing train={tr_missing_count}, val={va_missing_count}, test={te_missing_count}. "
+                f"Example missing track IDs: train={tr_missing_preview}, "
+                f"val={va_missing_preview}, test={te_missing_preview}. "
+                "Run precompute_mels.py with matching parameters."
+            )
 
     print(f"Using device: {device}")
     print(
@@ -482,6 +575,7 @@ def main() -> None:
         n_fft=args.n_fft,
         hop_length=args.hop_length,
         cache_dir=args.cache_dir,
+        require_cache=args.require_cache,
     )
     val_ds = FMAMelDataset(
         records=val_records,
@@ -493,6 +587,7 @@ def main() -> None:
         n_fft=args.n_fft,
         hop_length=args.hop_length,
         cache_dir=args.cache_dir,
+        require_cache=args.require_cache,
     )
     test_ds = FMAMelDataset(
         records=test_records,
@@ -504,6 +599,7 @@ def main() -> None:
         n_fft=args.n_fft,
         hop_length=args.hop_length,
         cache_dir=args.cache_dir,
+        require_cache=args.require_cache,
     )
 
     loader_kwargs = {

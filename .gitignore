@@ -10,3 +10,4 @@ outputs/
 # FMA datasets (large files)
 fma_large/
 fma_metadata/
+cnn-example/
