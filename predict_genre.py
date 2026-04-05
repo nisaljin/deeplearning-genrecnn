@@ -12,6 +12,7 @@ import librosa
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class GenreCNN(nn.Module):
@@ -51,6 +52,105 @@ class GenreCNN(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.classifier(self.features(x))
+
+
+class ResidualBlock(nn.Module):
+    def __init__(self, c_in: int, c_out: int, stride: int = 1) -> None:
+        super().__init__()
+        self.conv1 = nn.Conv2d(c_in, c_out, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(c_out)
+        self.conv2 = nn.Conv2d(c_out, c_out, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(c_out)
+        self.proj = None
+        if stride != 1 or c_in != c_out:
+            self.proj = nn.Sequential(
+                nn.Conv2d(c_in, c_out, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(c_out),
+            )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        identity = x if self.proj is None else self.proj(x)
+        out = F.relu(self.bn1(self.conv1(x)), inplace=True)
+        out = self.bn2(self.conv2(out))
+        return F.relu(out + identity, inplace=True)
+
+
+class GenreResCNN(nn.Module):
+    def __init__(self, num_classes: int) -> None:
+        super().__init__()
+        self.stem = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+        )
+        self.layer1 = ResidualBlock(32, 64, stride=2)
+        self.layer2 = ResidualBlock(64, 128, stride=2)
+        self.layer3 = ResidualBlock(128, 192, stride=2)
+        self.layer4 = ResidualBlock(192, 256, stride=2)
+        self.head = nn.Sequential(
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Dropout(0.4),
+            nn.Linear(256, num_classes),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.stem(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        return self.head(x)
+
+
+class GenreStandardCNN(nn.Module):
+    def __init__(self, num_classes: int) -> None:
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+            nn.Dropout(0.2),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+            nn.Dropout(0.1),
+            nn.Conv2d(64, 64, kernel_size=2, stride=1, padding=0, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+            nn.Dropout(0.1),
+        )
+        self.head = nn.Sequential(
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Linear(64, 128),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(128, num_classes),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.head(self.features(x))
+
+
+def build_model_from_checkpoint(config: dict, state_dict: dict, num_classes: int) -> nn.Module:
+    arch = (config or {}).get("model_arch")
+    if arch == "residual_cnn":
+        return GenreResCNN(num_classes=num_classes)
+    if arch == "standard_cnn":
+        return GenreStandardCNN(num_classes=num_classes)
+
+    # Backward-compatible fallback if model_arch is missing.
+    if any(k.startswith("stem.") for k in state_dict.keys()):
+        return GenreResCNN(num_classes=num_classes)
+    if any(k.startswith("head.") for k in state_dict.keys()) or any(
+        k.startswith("features.") for k in state_dict.keys()
+    ):
+        return GenreStandardCNN(num_classes=num_classes)
+    return GenreCNN(num_classes=num_classes)
 
 
 def parse_args() -> argparse.Namespace:
@@ -154,7 +254,11 @@ def main() -> None:
     label_to_idx = ckpt["label_to_idx"]
     idx_to_label = {i: lbl for lbl, i in label_to_idx.items()}
 
-    model = GenreCNN(num_classes=len(label_to_idx)).to(device)
+    model = build_model_from_checkpoint(
+        config=ckpt.get("config", {}),
+        state_dict=ckpt["model_state_dict"],
+        num_classes=len(label_to_idx),
+    ).to(device)
     if runtime["use_channels_last"]:
         model = model.to(memory_format=torch.channels_last)
     model.load_state_dict(ckpt["model_state_dict"])

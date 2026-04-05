@@ -1,6 +1,9 @@
 # FMA Genre Classification (CNN)
 
-This project trains a genre classification CNN on `fma_large` using labels/splits from `fma_metadata/tracks.csv`.
+This project builds a deep-learning music genre classifier on `fma_large` using labels/splits from `fma_metadata/tracks.csv`.
+It includes:
+- a CNN training workflow (`genre_classifier_workflow.ipynb`, `train_genre_cnn.py`)
+- a batch inference artifact (`predict_genre.py`)
 
 ## Dataset Layout
 
@@ -8,6 +11,8 @@ Expected local structure:
 
 - `fma_large/<###>/<######>.mp3`
 - `fma_metadata/tracks.csv`
+
+Large datasets and local training artifacts are intentionally excluded from git via `.gitignore`.
 
 ## Environment Setup (venv)
 
@@ -100,7 +105,7 @@ python predict_genre.py fma_large/002/002003.mp3 \
   - `test_confusion_matrix.npy`
   - `label_mapping.json`
 
-## Metrics and Baseline
+## Evaluation Metrics
 
 The script reports:
 
@@ -109,9 +114,12 @@ The script reports:
 - Macro Recall
 - Macro F1
 
-It also reports a **majority-class baseline** on validation/test for comparison.
+Recommended for report consistency:
+- report both validation and test metrics
+- include class-wise performance and confusion matrix discussion
+- include at least one simple baseline (for example majority-class predictor)
 
-## Suggested Hyperparameter Tuning Grid
+## Suggested Hyperparameter Grid
 
 Run and compare by macro-F1 on validation:
 
@@ -122,21 +130,42 @@ Run and compare by macro-F1 on validation:
 
 Use the best validation configuration and report test metrics once.
 
-## Rubric Mapping (From `project.md`)
+## Model Comparison Plan
 
-- Coding + reproducibility:
-  - `requirements.txt`
-  - deterministic seed (`--seed`)
-  - explicit commands above for smoke/full runs
-  - saved logs, plots, checkpoint, label mapping
-- Performance & evaluation:
-  - validation-based model selection
-  - test evaluation with accuracy/precision/recall/F1
-  - majority-class baseline comparison
-- Delivery:
-  - `predict_genre.py` demonstrates how a trained artifact is consumed
+Use CNN-only model comparison (valid for project requirements) with:
+- `cnn_standard_base` (simpler settings)
+- `cnn_residual` (ResCNN-style variant)
+- `cnn_standard_aug` (`standard_cnn` architecture)
 
-Recommended for your report:
-- Include an end-to-end pipeline diagram (data -> preprocessing -> training -> validation tuning -> test -> inference).
-- Add failure analysis examples using confusion matrix (`test_confusion_matrix.npy`).
-- Run 3-5 hyperparameter settings and compare validation macro-F1 in a table.
+You can run all three using:
+
+```bash
+bash scripts/run_cnn_comparison.sh
+```
+
+Minimum comparison table columns:
+- model name
+- key hyperparameters
+- validation macro-F1
+- test macro-F1
+- test macro-precision
+- test macro-recall
+- train/inference cost notes
+
+For each run, read metrics from:
+- `<output_dir>/summary.json`
+- `<output_dir>/history.csv`
+
+## Rubric-Aligned Submission Docs
+
+- Submission readiness checklist: `docs/SUBMISSION_CHECKLIST.md`
+- 10-15 page report template: `docs/REPORT_TEMPLATE.md`
+
+## Deployment + Monitoring Note (for report)
+
+Current artifact is a batch inference script (`predict_genre.py`).
+If deployed as a service, track:
+- latency (P50/P95/P99)
+- throughput
+- prediction drift (class distribution shift over time)
+- data drift (audio duration/sample-rate/loudness distribution changes)

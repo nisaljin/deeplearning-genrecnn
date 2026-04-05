@@ -106,10 +106,19 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--early-stop-patience", type=int, default=8)
     p.add_argument("--metric-for-best", type=str, default="val_f1_macro", choices=["val_f1_macro", "val_recall_macro"])
 
-    p.add_argument("--model-arch", type=str, default="res_cnn", choices=["res_cnn", "their_cnn2"])
-    p.add_argument("--their-recipe-lr", type=float, default=1e-4)
-    p.add_argument("--their-recipe-disable-spec-aug", action="store_true", default=True)
-    p.add_argument("--no-their-recipe-disable-spec-aug", action="store_false", dest="their_recipe_disable_spec_aug")
+    p.add_argument("--model-arch", type=str, default="residual_cnn", choices=["residual_cnn", "standard_cnn"])
+    p.add_argument("--standard-recipe-lr", type=float, default=1e-4, dest="standard_recipe_lr")
+    p.add_argument(
+        "--standard-recipe-disable-spec-aug",
+        action="store_true",
+        default=True,
+        dest="standard_recipe_disable_spec_aug",
+    )
+    p.add_argument(
+        "--no-standard-recipe-disable-spec-aug",
+        action="store_false",
+        dest="standard_recipe_disable_spec_aug",
+    )
 
     p.add_argument("--precompute-overwrite", action="store_true", default=False)
     p.add_argument("--eval-log-every", type=int, default=500)
@@ -602,7 +611,7 @@ class GenreResCNN(nn.Module):
         return self.head(x)
 
 
-class GenreTheirCNN2(nn.Module):
+class GenreStandardCNN(nn.Module):
     def __init__(self, num_classes: int) -> None:
         super().__init__()
         self.features = nn.Sequential(
@@ -1091,7 +1100,7 @@ def main() -> None:
             raise FileNotFoundError(f"Cache incomplete: {split_name} missing={miss}, preview={prev}")
 
     effective_use_aug = args.use_aug
-    if args.model_arch == "their_cnn2" and args.their_recipe_disable_spec_aug:
+    if args.model_arch == "standard_cnn" and args.standard_recipe_disable_spec_aug:
         effective_use_aug = False
 
     train_ds = MelCropDataset(
@@ -1132,10 +1141,10 @@ def main() -> None:
             pin_memory=(device.type == "cuda"),
         )
 
-    if args.model_arch == "res_cnn":
+    if args.model_arch == "residual_cnn":
         model = GenreResCNN(num_classes=len(all_genres)).to(device)
     else:
-        model = GenreTheirCNN2(num_classes=len(all_genres)).to(device)
+        model = GenreStandardCNN(num_classes=len(all_genres)).to(device)
     if runtime["use_channels_last"]:
         model = model.to(memory_format=torch.channels_last)
 
@@ -1149,7 +1158,7 @@ def main() -> None:
         ce_weight = cw
 
     criterion = FocalLoss(alpha=loss_alpha, gamma=args.focal_gamma) if args.use_focal_loss else nn.CrossEntropyLoss(weight=ce_weight)
-    effective_lr = args.their_recipe_lr if args.model_arch == "their_cnn2" else args.lr
+    effective_lr = args.standard_recipe_lr if args.model_arch == "standard_cnn" else args.lr
     optimizer = optim.AdamW(model.parameters(), lr=effective_lr, weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", patience=2, factor=0.5)
 
