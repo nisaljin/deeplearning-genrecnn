@@ -1,0 +1,47 @@
+track_id,split,genre,path,exists,size_bytes,sf_error
+29345,test,International,fma_large/029/029345.mp3,True,894,Error opening 'fma_large/029/029345.mp3': File does not exist or is not a regular file (possibly a pipe?).
+84522,test,Experimental,fma_large/084/084522.mp3,True,1031,Error opening 'fma_large/084/084522.mp3': File does not exist or is not a regular file (possibly a pipe?).
+84524,test,Experimental,fma_large/084/084524.mp3,True,1031,Error opening 'fma_large/084/084524.mp3': File does not exist or is not a regular file (possibly a pipe?).
+106628,test,Instrumental,fma_large/106/106628.mp3,True,937,Error opening 'fma_large/106/106628.mp3': File does not exist or is not a regular file (possibly a pipe?).
+10116,training,Electronic,fma_large/010/010116.mp3,True,1757,Error opening 'fma_large/010/010116.mp3': File does not exist or is not a regular file (possibly a pipe?).
+12838,training,Folk,fma_large/012/012838.mp3,True,1098,Error opening 'fma_large/012/012838.mp3': File does not exist or is not a regular file (possibly a pipe?).
+20814,training,Spoken,fma_large/020/020814.mp3,True,1516,Error opening 'fma_large/020/020814.mp3': File does not exist or is not a regular file (possibly a pipe?).
+25173,training,Old-Time / Historic,fma_large/025/025173.mp3,True,1325,Error opening 'fma_large/025/025173.mp3': File does not exist or is not a regular file (possibly a pipe?).
+25174,training,Old-Time / Historic,fma_large/025/025174.mp3,True,1298,Error opening 'fma_large/025/025174.mp3': File does not exist or is not a regular file (possibly a pipe?).
+25175,training,Old-Time / Historic,fma_large/025/025175.mp3,True,1313,Error opening 'fma_large/025/025175.mp3': File does not exist or is not a regular file (possibly a pipe?).
+25176,training,Old-Time / Historic,fma_large/025/025176.mp3,True,1402,Error opening 'fma_large/025/025176.mp3': File does not exist or is not a regular file (possibly a pipe?).
+25180,training,Old-Time / Historic,fma_large/025/025180.mp3,True,1400,Error opening 'fma_large/025/025180.mp3': File does not exist or is not a regular file (possibly a pipe?).
+29346,training,International,fma_large/029/029346.mp3,True,835,Error opening 'fma_large/029/029346.mp3': File does not exist or is not a regular file (possibly a pipe?).
+29352,training,International,fma_large/029/029352.mp3,True,927,Error opening 'fma_large/029/029352.mp3': File does not exist or is not a regular file (possibly a pipe?).
+29356,training,International,fma_large/029/029356.mp3,True,801,Error opening 'fma_large/029/029356.mp3': File does not exist or is not a regular file (possibly a pipe?).
+33411,training,International,fma_large/033/033411.mp3,True,897,Error opening 'fma_large/033/033411.mp3': File does not exist or is not a regular file (possibly a pipe?).
+33413,training,International,fma_large/033/033413.mp3,True,814,Error opening 'fma_large/033/033413.mp3': File does not exist or is not a regular file (possibly a pipe?).
+33414,training,International,fma_large/033/033414.mp3,True,873,Error opening 'fma_large/033/033414.mp3': File does not exist or is not a regular file (possibly a pipe?).
+33417,training,International,fma_large/033/033417.mp3,True,843,Error opening 'fma_large/033/033417.mp3': File does not exist or is not a regular file (possibly a pipe?).
+33418,training,International,fma_large/033/033418.mp3,True,892,Error opening 'fma_large/033/033418.mp3': File does not exist or is not a regular file (possibly a pipe?).
+33419,training,International,fma_large/033/033419.mp3,True,873,Error opening 'fma_large/033/033419.mp3': File does not exist or is not a regular file (possibly a pipe?).
+33425,training,International,fma_large/033/033425.mp3,True,883,Error opening 'fma_large/033/033425.mp3': File does not exist or is not a regular file (possibly a pipe?).
+50594,training,Pop,fma_large/050/050594.mp3,True,1481,Error opening 'fma_large/050/050594.mp3': File does not exist or is not a regular file (possibly a pipe?).
+54569,training,International,fma_large/054/054569.mp3,True,821,Error opening 'fma_large/054/054569.mp3': File does not exist or is not a regular file (possibly a pipe?).
+61822,training,Rock,fma_large/061/061822.mp3,True,1808,Error opening 'fma_large/061/061822.mp3': File does not exist or is not a regular file (possibly a pipe?).
+63422,training,Spoken,fma_large/063/063422.mp3,True,1328,Error opening 'fma_large/063/063422.mp3': File does not exist or is not a regular file (possibly a pipe?).
+72980,training,Experimental,fma_large/072/072980.mp3,True,1255,Error opening 'fma_large/072/072980.mp3': File does not exist or is not a regular file (possibly a pipe?).
+92479,training,Rock,fma_large/092/092479.mp3,True,1132,Error opening 'fma_large/092/092479.mp3': File does not exist or is not a regular file (possibly a pipe?).
+94052,training,Rock,fma_large/094/094052.mp3,True,1171,Error opening 'fma_large/094/094052.mp3': File does not exist or is not a regular file (possibly a pipe?).
+94234,training,Hip-Hop,fma_large/094/094234.mp3,True,1079,Error opening 'fma_large/094/094234.mp3': File does not exist or is not a regular file (possibly a pipe?).
+98562,training,Hip-Hop,fma_large/098/098562.mp3,True,1599,Error opening 'fma_large/098/098562.mp3': File does not exist or is not a regular file (possibly a pipe?).
+108920,training,Rock,fma_large/108/108920.mp3,True,1377,Error opening 'fma_large/108/108920.mp3': File does not exist or is not a regular file (possibly a pipe?).
+110236,training,Experimental,fma_large/110/110236.mp3,True,1792,Error opening 'fma_large/110/110236.mp3': File does not exist or is not a regular file (possibly a pipe?).
+131545,training,International,fma_large/131/131545.mp3,True,1597,Error opening 'fma_large/131/131545.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148786,training,Electronic,fma_large/148/148786.mp3,True,1604,Error opening 'fma_large/148/148786.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148787,training,Electronic,fma_large/148/148787.mp3,True,1625,Error opening 'fma_large/148/148787.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148788,training,Electronic,fma_large/148/148788.mp3,True,1608,Error opening 'fma_large/148/148788.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148789,training,Electronic,fma_large/148/148789.mp3,True,1598,Error opening 'fma_large/148/148789.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148790,training,Electronic,fma_large/148/148790.mp3,True,1598,Error opening 'fma_large/148/148790.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148791,training,Electronic,fma_large/148/148791.mp3,True,1600,Error opening 'fma_large/148/148791.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148792,training,Electronic,fma_large/148/148792.mp3,True,1600,Error opening 'fma_large/148/148792.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148793,training,Electronic,fma_large/148/148793.mp3,True,1600,Error opening 'fma_large/148/148793.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148794,training,Electronic,fma_large/148/148794.mp3,True,1602,Error opening 'fma_large/148/148794.mp3': File does not exist or is not a regular file (possibly a pipe?).
+148795,training,Electronic,fma_large/148/148795.mp3,True,1621,Error opening 'fma_large/148/148795.mp3': File does not exist or is not a regular file (possibly a pipe?).
+54582,validation,International,fma_large/054/054582.mp3,True,895,Error opening 'fma_large/054/054582.mp3': File does not exist or is not a regular file (possibly a pipe?).
+82699,validation,Rock,fma_large/082/082699.mp3,True,825,Error opening 'fma_large/082/082699.mp3': File does not exist or is not a regular file (possibly a pipe?).

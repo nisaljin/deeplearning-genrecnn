@@ -17,6 +17,7 @@ Large datasets and local training artifacts are intentionally excluded from git 
 ## Download FMA Data
 
 This project expects the extracted FMA archives to live at the repository root.
+The official FMA repository is here: https://github.com/mdeff/fma
 
 1. Create a temporary download folder in the project directory:
 
@@ -128,8 +129,42 @@ python train_genre_cnn.py \
 
 ```bash
 python predict_genre.py fma_large/002/002003.mp3 \
-  --checkpoint outputs/full_run_seed42/best_model.pt \
+  --checkpoint outputs/full_run_seed42_cache_only/best_model.pt \
   --top-k 5
+```
+
+## Inference API (Frontend Demo)
+
+Run an HTTP inference server:
+
+```bash
+python infer_api.py \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+By default it auto-loads `outputs/high_recall_precision_run/best_model.pt`.
+You can still override with `--checkpoint <path>`.
+
+Health check:
+
+```bash
+curl http://localhost:8000/health
+```
+
+Predict from an uploaded audio file:
+
+```bash
+curl -X POST "http://localhost:8000/predict?top_k=5" \
+  -F "file=@fma_large/002/002003.mp3"
+```
+
+For browser apps, CORS is enabled by default (`*`). Restrict it in production:
+
+```bash
+python infer_api.py \
+  --checkpoint outputs/high_recall_precision_run/best_model.pt \
+  --cors-origins "http://localhost:3000,https://your-demo.example"
 ```
 
 ## Reproducibility Notes

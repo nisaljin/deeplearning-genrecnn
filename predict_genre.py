@@ -142,14 +142,17 @@ def build_model_from_checkpoint(config: dict, state_dict: dict, num_classes: int
         return GenreResCNN(num_classes=num_classes)
     if arch == "standard_cnn":
         return GenreStandardCNN(num_classes=num_classes)
+    if arch == "cnn":
+        return GenreCNN(num_classes=num_classes)
 
     # Backward-compatible fallback if model_arch is missing.
+    # Prefer explicit classifier/head/stem key families over generic "features.*" checks.
     if any(k.startswith("stem.") for k in state_dict.keys()):
         return GenreResCNN(num_classes=num_classes)
-    if any(k.startswith("head.") for k in state_dict.keys()) or any(
-        k.startswith("features.") for k in state_dict.keys()
-    ):
+    if any(k.startswith("head.") for k in state_dict.keys()):
         return GenreStandardCNN(num_classes=num_classes)
+    if any(k.startswith("classifier.") for k in state_dict.keys()):
+        return GenreCNN(num_classes=num_classes)
     return GenreCNN(num_classes=num_classes)
 
 
