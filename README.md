@@ -14,6 +14,46 @@ Expected local structure:
 
 Large datasets and local training artifacts are intentionally excluded from git via `.gitignore`.
 
+## Download FMA Data
+
+This project expects the extracted FMA archives to live at the repository root.
+
+1. Create a temporary download folder in the project directory:
+
+```bash
+mkdir -p data/fma_downloads
+cd data/fma_downloads
+```
+
+2. Download the archives you need from the official FMA repository:
+
+```bash
+curl -O https://os.unil.cloud.switch.ch/fma/fma_metadata.zip
+curl -O https://os.unil.cloud.switch.ch/fma/fma_large.zip
+```
+
+3. Unzip the archives so the extracted folders are named exactly as expected:
+
+```bash
+unzip fma_metadata.zip
+unzip fma_large.zip
+```
+
+4. Move the extracted folders into the project root:
+
+```bash
+mv fma_metadata ../..
+mv fma_large ../..
+cd ../..
+```
+
+After this, the repository should contain:
+
+- `fma_metadata/tracks.csv`
+- `fma_large/<###>/<######>.mp3`
+
+If you downloaded the archives somewhere else, the important part is that the extracted directories end up at the repository root with those exact names.
+
 ## Environment Setup (venv)
 
 Use a virtual environment for all project commands.
