@@ -24,7 +24,7 @@ pip install -r requirements.txt
 echo "[4/4] Verifying key imports"
 python - <<'PY'
 import importlib
-mods = ["torch", "pandas", "numpy", "librosa", "sklearn", "matplotlib"]
+mods = ["torch", "pandas", "numpy", "librosa", "sklearn", "matplotlib", "resamply"]
 for m in mods:
     importlib.import_module(m)
 print("Dependency import check passed")

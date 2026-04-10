@@ -10,29 +10,47 @@ function trackPathFromId(trackId) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const trackId = Number.parseInt(body?.trackId, 10);
-    if (!Number.isFinite(trackId)) {
-      return Response.json({ error: "Invalid track id." }, { status: 400 });
+    const contentType = request.headers.get("content-type") || "";
+    let formToSend = new FormData();
+
+    // 1. Handle "Shazam Mode" Microphone Uploads
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      const file = formData.get("file");
+      
+      if (!file) {
+        return Response.json({ error: "No audio file uploaded." }, { status: 400 });
+      }
+      formToSend.append("file", file, file.name);
+    } 
+    // 2. Handle Dataset Track ID Uploads
+    else {
+      const body = await request.json();
+      const trackId = Number.parseInt(body?.trackId, 10);
+      
+      if (!Number.isFinite(trackId)) {
+        return Response.json({ error: "Invalid track id." }, { status: 400 });
+      }
+
+      const p = trackPathFromId(trackId);
+      if (!fs.existsSync(p)) {
+        return Response.json({ error: "Audio file not found." }, { status: 404 });
+      }
+
+      const bytes = fs.readFileSync(p);
+      const blob = new Blob([bytes], { type: "audio/mpeg" });
+      formToSend.append("file", blob, path.basename(p));
     }
 
-    const p = trackPathFromId(trackId);
-    if (!fs.existsSync(p)) {
-      return Response.json({ error: "Audio file not found." }, { status: 404 });
-    }
-
-    const bytes = fs.readFileSync(p);
-    const blob = new Blob([bytes], { type: "audio/mpeg" });
-    const form = new FormData();
-    form.append("file", blob, path.basename(p));
-
+    // Forward the FormData to the Python FastAPI backend
     const res = await fetch(`${INFER_API_URL}/predict?top_k=5`, {
       method: "POST",
-      body: form,
+      body: formToSend,
       cache: "no-store"
     });
 
     const data = await res.json();
+    
     if (!res.ok) {
       return Response.json({ error: data?.detail || data?.error || "Model prediction failed." }, { status: res.status });
     }

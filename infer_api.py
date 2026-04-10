@@ -106,7 +106,7 @@ def create_app(args: argparse.Namespace) -> FastAPI:
     @app.post("/predict")
     async def predict(file: UploadFile = File(...), top_k: int | None = None) -> dict:
         filename = file.filename or ""
-        if not filename.lower().endswith((".mp3", ".wav", ".flac", ".ogg", ".m4a")):
+        if not filename.lower().endswith((".mp3", ".wav", ".flac", ".ogg", ".m4a", ".webm", ".weba", ".mp4")):
             raise HTTPException(status_code=400, detail="Unsupported file type.")
 
         k = args.top_k_default if top_k is None else top_k
