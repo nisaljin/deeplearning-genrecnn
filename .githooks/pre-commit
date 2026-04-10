@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+set -eu
+
+python scripts/check_frontend_audio_bundle.py --max-bytes 26214400 --max-files 24

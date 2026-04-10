@@ -1,0 +1,23 @@
+name: Frontend Audio Guardrails
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  bundle-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check frontend bundle size/count/manifest
+        run: python scripts/check_frontend_audio_bundle.py --max-bytes 26214400 --max-files 24

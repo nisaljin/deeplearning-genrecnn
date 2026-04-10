@@ -1,0 +1,170 @@
+[
+  {
+    "trackId": 148,
+    "split": "validation",
+    "genre": "Experimental",
+    "filename": "000148.mp3",
+    "audioPath": "/validation-audio/000148.mp3"
+  },
+  {
+    "trackId": 458,
+    "split": "validation",
+    "genre": "Rock",
+    "filename": "000458.mp3",
+    "audioPath": "/validation-audio/000458.mp3"
+  },
+  {
+    "trackId": 459,
+    "split": "validation",
+    "genre": "Rock",
+    "filename": "000459.mp3",
+    "audioPath": "/validation-audio/000459.mp3"
+  },
+  {
+    "trackId": 583,
+    "split": "validation",
+    "genre": "Hip-Hop",
+    "filename": "000583.mp3",
+    "audioPath": "/validation-audio/000583.mp3"
+  },
+  {
+    "trackId": 584,
+    "split": "validation",
+    "genre": "Hip-Hop",
+    "filename": "000584.mp3",
+    "audioPath": "/validation-audio/000584.mp3"
+  },
+  {
+    "trackId": 601,
+    "split": "validation",
+    "genre": "Folk",
+    "filename": "000601.mp3",
+    "audioPath": "/validation-audio/000601.mp3"
+  },
+  {
+    "trackId": 602,
+    "split": "validation",
+    "genre": "Folk",
+    "filename": "000602.mp3",
+    "audioPath": "/validation-audio/000602.mp3"
+  },
+  {
+    "trackId": 904,
+    "split": "validation",
+    "genre": "Spoken",
+    "filename": "000904.mp3",
+    "audioPath": "/validation-audio/000904.mp3"
+  },
+  {
+    "trackId": 905,
+    "split": "validation",
+    "genre": "Spoken",
+    "filename": "000905.mp3",
+    "audioPath": "/validation-audio/000905.mp3"
+  },
+  {
+    "trackId": 1084,
+    "split": "validation",
+    "genre": "Electronic",
+    "filename": "001084.mp3",
+    "audioPath": "/validation-audio/001084.mp3"
+  },
+  {
+    "trackId": 1085,
+    "split": "validation",
+    "genre": "Electronic",
+    "filename": "001085.mp3",
+    "audioPath": "/validation-audio/001085.mp3"
+  },
+  {
+    "trackId": 1110,
+    "split": "validation",
+    "genre": "Experimental",
+    "filename": "001110.mp3",
+    "audioPath": "/validation-audio/001110.mp3"
+  },
+  {
+    "trackId": 4737,
+    "split": "validation",
+    "genre": "Country",
+    "filename": "004737.mp3",
+    "audioPath": "/validation-audio/004737.mp3"
+  },
+  {
+    "trackId": 4738,
+    "split": "validation",
+    "genre": "Country",
+    "filename": "004738.mp3",
+    "audioPath": "/validation-audio/004738.mp3"
+  },
+  {
+    "trackId": 4850,
+    "split": "validation",
+    "genre": "Classical",
+    "filename": "004850.mp3",
+    "audioPath": "/validation-audio/004850.mp3"
+  },
+  {
+    "trackId": 4851,
+    "split": "validation",
+    "genre": "Classical",
+    "filename": "004851.mp3",
+    "audioPath": "/validation-audio/004851.mp3"
+  },
+  {
+    "trackId": 5034,
+    "split": "validation",
+    "genre": "Old-Time / Historic",
+    "filename": "005034.mp3",
+    "audioPath": "/validation-audio/005034.mp3"
+  },
+  {
+    "trackId": 5036,
+    "split": "validation",
+    "genre": "Old-Time / Historic",
+    "filename": "005036.mp3",
+    "audioPath": "/validation-audio/005036.mp3"
+  },
+  {
+    "trackId": 5175,
+    "split": "validation",
+    "genre": "Pop",
+    "filename": "005175.mp3",
+    "audioPath": "/validation-audio/005175.mp3"
+  },
+  {
+    "trackId": 5176,
+    "split": "validation",
+    "genre": "Pop",
+    "filename": "005176.mp3",
+    "audioPath": "/validation-audio/005176.mp3"
+  },
+  {
+    "trackId": 5955,
+    "split": "validation",
+    "genre": "Jazz",
+    "filename": "005955.mp3",
+    "audioPath": "/validation-audio/005955.mp3"
+  },
+  {
+    "trackId": 6331,
+    "split": "validation",
+    "genre": "International",
+    "filename": "006331.mp3",
+    "audioPath": "/validation-audio/006331.mp3"
+  },
+  {
+    "trackId": 6333,
+    "split": "validation",
+    "genre": "International",
+    "filename": "006333.mp3",
+    "audioPath": "/validation-audio/006333.mp3"
+  },
+  {
+    "trackId": 8580,
+    "split": "validation",
+    "genre": "Jazz",
+    "filename": "008580.mp3",
+    "audioPath": "/validation-audio/008580.mp3"
+  }
+]

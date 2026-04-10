@@ -61,7 +61,7 @@ function PredictionList({ predictions }) {
 export function AudioUploadCard({
   className,
   title = "Unseen Audio Demo",
-  description = "Randomly samples validation/test audio and predicts genre."
+  description = "Randomly samples bundled validation audio and predicts genre."
 }) {
   const [sample, setSample] = useState(null);
   const [loadingSample, setLoadingSample] = useState(true);
@@ -127,7 +127,9 @@ export function AudioUploadCard({
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium">{loadingSample ? "Picking unseen sample..." : sample?.filename || "No sample"}</p>
-                <p className="text-xs text-muted-foreground">{sample ? `Track #${sample.trackId} • split: ${sample.split}` : "Validation/Test only"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {sample ? `Track #${sample.trackId} • split: ${sample.split} • genre: ${sample.genre}` : "Bundled validation set"}
+                </p>
               </div>
 
               <button

@@ -1,12 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getValidationAudioAbsolutePath, getValidationAudioByTrackId } from "@/lib/validation-audio";
 
 const INFER_API_URL = process.env.INFER_API_URL || "http://127.0.0.1:8000";
-
-function trackPathFromId(trackId) {
-  const six = String(trackId).padStart(6, "0");
-  return path.join(process.cwd(), "..", "fma_large", six.slice(0, 3), `${six}.mp3`);
-}
 
 export async function POST(request) {
   try {
@@ -16,7 +12,12 @@ export async function POST(request) {
       return Response.json({ error: "Invalid track id." }, { status: 400 });
     }
 
-    const p = trackPathFromId(trackId);
+    const entry = getValidationAudioByTrackId(trackId);
+    if (!entry) {
+      return Response.json({ error: "Track is not in bundled validation audio set." }, { status: 404 });
+    }
+
+    const p = getValidationAudioAbsolutePath(entry.filename);
     if (!fs.existsSync(p)) {
       return Response.json({ error: "Audio file not found." }, { status: 404 });
     }

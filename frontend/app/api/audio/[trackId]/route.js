@@ -1,10 +1,5 @@
 import fs from "node:fs";
-import path from "node:path";
-
-function trackPathFromId(trackId) {
-  const six = String(trackId).padStart(6, "0");
-  return path.join(process.cwd(), "..", "fma_large", six.slice(0, 3), `${six}.mp3`);
-}
+import { getValidationAudioAbsolutePath, getValidationAudioByTrackId } from "@/lib/validation-audio";
 
 export async function GET(_request, { params }) {
   const { trackId: trackIdParam } = await params;
@@ -13,7 +8,12 @@ export async function GET(_request, { params }) {
     return Response.json({ error: "Invalid track id." }, { status: 400 });
   }
 
-  const p = trackPathFromId(trackId);
+  const entry = getValidationAudioByTrackId(trackId);
+  if (!entry) {
+    return Response.json({ error: "Track is not in bundled validation audio set." }, { status: 404 });
+  }
+
+  const p = getValidationAudioAbsolutePath(entry.filename);
   if (!fs.existsSync(p)) {
     return Response.json({ error: "Audio file not found." }, { status: 404 });
   }

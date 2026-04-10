@@ -14,6 +14,68 @@ Expected local structure:
 
 Large datasets and local training artifacts are intentionally excluded from git via `.gitignore`.
 
+## Frontend Starter Audio Bundle
+
+The frontend demo works out of the box from a small committed bundle in:
+
+- `frontend/public/validation-audio`
+
+This starter bundle is for demo UX only. The full FMA dataset is still required for training and for rebuilding the bundled sample set.
+
+### Teammate onboarding (no dataset required for UI samples)
+
+- Run the frontend and backend as usual.
+- The random sample UI (`/api/random-audio` and `/api/audio/:trackId`) reads only from bundled files + `manifest.json`.
+- No `fma_large` download is required just to play bundled UI samples.
+
+### Rebuild the bundled sample set (maintainers)
+
+Use this only when you have `fma_large` + `fma_metadata/tracks.csv` locally:
+
+```bash
+python scripts/build_frontend_audio_bundle.py \
+  --audio-dir fma_large \
+  --metadata-path fma_metadata/tracks.csv \
+  --max-tracks 24 \
+  --max-per-genre 2 \
+  --seed 42
+```
+
+Optional size reduction while rebuilding (requires `ffmpeg`):
+
+```bash
+python scripts/build_frontend_audio_bundle.py \
+  --audio-dir fma_large \
+  --metadata-path fma_metadata/tracks.csv \
+  --max-tracks 24 \
+  --max-per-genre 2 \
+  --seed 42 \
+  --trim-seconds 20 \
+  --normalize-loudness \
+  --mp3-bitrate-kbps 96
+```
+
+### Bundle guardrails (size/count/manifest)
+
+Check bundle limits locally:
+
+```bash
+python scripts/check_frontend_audio_bundle.py --max-bytes 26214400 --max-files 24
+```
+
+This fails if:
+- bundled MP3 total size exceeds 25 MB,
+- bundled file count exceeds 24,
+- `manifest.json` does not match files exactly.
+
+CI also enforces this via `.github/workflows/frontend-audio-guardrails.yml`.
+
+For local pre-commit enforcement, set hooks path once:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Download FMA Data
 
 This project expects the extracted FMA archives to live at the repository root.
