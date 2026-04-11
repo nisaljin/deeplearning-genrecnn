@@ -1,176 +1,131 @@
-#!/usr/bin/env python3
-"""HTTP inference API for the trained FMA genre CNN checkpoints."""
-
-from __future__ import annotations
-
-import argparse
-import tempfile
-from contextlib import nullcontext
-from pathlib import Path
-
+import io
+import json
 import torch
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import torchaudio
+import uvicorn
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from torch import nn
 
-from predict_genre import (
-    build_feature,
-    build_model_from_checkpoint,
-    choose_device,
-    optimize_runtime,
+app = FastAPI(title="Multi-Genre CNN Inference API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Serve genre inference as an HTTP API")
-    p.add_argument("--checkpoint", type=Path, default=None)
-    p.add_argument("--host", type=str, default="0.0.0.0")
-    p.add_argument("--port", type=int, default=8000)
-    p.add_argument("--sample-rate", type=int, default=22050)
-    p.add_argument("--clip-duration", type=float, default=29.0)
-    p.add_argument("--n-mels", type=int, default=128)
-    p.add_argument("--n-fft", type=int, default=2048)
-    p.add_argument("--hop-length", type=int, default=512)
-    p.add_argument("--top-k-default", type=int, default=5)
-    p.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda", "mps"])
-    p.add_argument(
-        "--cors-origins",
-        type=str,
-        default="*",
-        help='Comma-separated allowed origins. Use "*" for all.',
-    )
-    return p.parse_args()
+# 1. Load the dynamic classes from your JSON file
+try:
+    with open("fma_classes.json", "r") as f:
+        metadata = json.load(f)
+        CLASSES = metadata["classes"]
+        NUM_CLASSES = metadata["num_classes"]
+except FileNotFoundError:
+    raise RuntimeError("Could not find fma_classes.json! Please ensure it is in the root directory.")
 
-
-def resolve_checkpoint(cli_checkpoint: Path | None) -> Path:
-    if cli_checkpoint is not None:
-        if not cli_checkpoint.exists():
-            raise FileNotFoundError(f"Checkpoint not found: {cli_checkpoint}")
-        return cli_checkpoint
-
-    preferred = Path("outputs/high_recall_precision_run/best_model.pt")
-    if preferred.exists():
-        return preferred
-
-    fallback = Path("outputs/best_model.pt")
-    if fallback.exists():
-        return fallback
-
-    candidates = sorted(Path("outputs").glob("**/best_model.pt"))
-    if candidates:
-        return candidates[0]
-
-    raise FileNotFoundError(
-        "No checkpoint found. Pass --checkpoint or place a checkpoint at "
-        "'outputs/high_recall_precision_run/best_model.pt'."
-    )
-
-
-def create_app(args: argparse.Namespace) -> FastAPI:
-    device = choose_device(args.device)
-    runtime = optimize_runtime(device)
-    checkpoint = resolve_checkpoint(args.checkpoint)
-    ckpt = torch.load(checkpoint, map_location=device)
-    label_to_idx = ckpt["label_to_idx"]
-    idx_to_label = {i: lbl for lbl, i in label_to_idx.items()}
-
-    model = build_model_from_checkpoint(
-        config=ckpt.get("config", {}),
-        state_dict=ckpt["model_state_dict"],
-        num_classes=len(label_to_idx),
-    ).to(device)
-    if runtime["use_channels_last"]:
-        model = model.to(memory_format=torch.channels_last)
-    model.load_state_dict(ckpt["model_state_dict"])
-    model.eval()
-
-    app = FastAPI(title="Genre Detection Inference API", version="1.0.0")
-
-    allowed_origins = [origin.strip() for origin in args.cors_origins.split(",") if origin.strip()]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=allowed_origins or ["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    @app.get("/health")
-    def health() -> dict:
-        return {
-            "status": "ok",
-            "device": str(device),
-            "num_classes": len(label_to_idx),
-            "checkpoint": str(checkpoint),
-        }
-
-    @app.post("/predict")
-    async def predict(file: UploadFile = File(...), top_k: int | None = None) -> dict:
-        filename = file.filename or ""
-        if not filename.lower().endswith((".mp3", ".wav", ".flac", ".ogg", ".m4a", ".webm", ".weba", ".mp4")):
-            raise HTTPException(status_code=400, detail="Unsupported file type.")
-
-        k = args.top_k_default if top_k is None else top_k
-        if k <= 0:
-            raise HTTPException(status_code=400, detail="top_k must be >= 1.")
-
-        suffix = Path(filename).suffix or ".audio"
-        payload = await file.read()
-        if not payload:
-            raise HTTPException(status_code=400, detail="Empty upload.")
-
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
-            tmp.write(payload)
-            tmp.flush()
-
-            try:
-                x = build_feature(
-                    audio_path=Path(tmp.name),
-                    sample_rate=args.sample_rate,
-                    clip_duration=args.clip_duration,
-                    n_mels=args.n_mels,
-                    n_fft=args.n_fft,
-                    hop_length=args.hop_length,
-                )
-            except Exception as exc:
-                raise HTTPException(status_code=400, detail=f"Failed to decode audio: {exc}") from exc
-
-            if runtime["use_channels_last"]:
-                x = x.contiguous(memory_format=torch.channels_last)
-            x = x.to(device, non_blocking=(device.type == "cuda"))
-
-            amp_ctx = (
-                torch.autocast(
-                    device_type=device.type,
-                    dtype=runtime["amp_dtype"],
-                    enabled=runtime["use_amp"],
-                )
-                if runtime["use_amp"]
-                else nullcontext()
+# 2. The Updated Multi-Label Architecture
+class MultiGenreCNN(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        def conv_block(in_channels, out_channels):
+            return nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(),
+                nn.MaxPool2d(2)
             )
-            with torch.inference_mode():
-                with amp_ctx:
-                    logits = model(x)
-                    probs = torch.softmax(logits, dim=1).squeeze(0)
+        self.features = nn.Sequential(
+            conv_block(1, 32),
+            conv_block(32, 64),
+            conv_block(64, 128),
+            conv_block(128, 256),
+            nn.AdaptiveAvgPool2d((1, 1)) # Handles dynamic audio lengths!
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Dropout(0.5),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, num_classes)
+        )
 
-        k = min(k, probs.shape[0])
-        top_probs, top_idx = torch.topk(probs, k=k)
-        predictions = [
-            {"genre": idx_to_label[i], "probability": float(p)}
-            for p, i in zip(top_probs.tolist(), top_idx.tolist())
-        ]
-        return {"filename": filename, "predictions": predictions}
+    def forward(self, x):
+        return self.classifier(self.features(x))
 
-    return app
+# 3. Load the Model
+model = MultiGenreCNN(NUM_CLASSES).to(device)
+try:
+    # Use map_location to ensure it loads on a Mac/CPU even if trained on a GPU
+    model.load_state_dict(torch.load("best_fma_multilabel.pt", map_location=device))
+    model.eval()
+    print("✅ Multi-Label Model loaded successfully.")
+except Exception as e:
+    print(f"❌ Failed to load model weights: {e}")
 
+# Global Audio Transformers
+mel_transform = torchaudio.transforms.MelSpectrogram(
+    sample_rate=22050, n_mels=128, n_fft=2048, hop_length=512
+).to(device)
+amplitude_to_db = torchaudio.transforms.AmplitudeToDB().to(device)
 
-def main() -> None:
-    args = parse_args()
-    app = create_app(args)
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "mode": "multi-label", "classes_loaded": NUM_CLASSES}
 
-    import uvicorn
+@app.post("/predict")
+async def predict(file: UploadFile = File(...), top_k: int | None = 5) -> dict:
+    filename = file.filename or ""
+    if not filename.lower().endswith((".mp3", ".wav", ".flac", ".ogg", ".m4a", ".webm", ".weba", ".mp4")):
+        raise HTTPException(status_code=400, detail="Unsupported file type.")
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    try:
+        audio_bytes = await file.read()
+        waveform, sr = torchaudio.load(io.BytesIO(audio_bytes))
 
+        # Audio preprocessing
+        if sr != 22050:
+            waveform = torchaudio.transforms.Resample(sr, 22050)(waveform)
+        if waveform.shape[0] > 1:
+            waveform = torch.mean(waveform, dim=0, keepdim=True)
+
+        # Standardize length to 5 seconds
+        target_length = 22050 * 5
+        if waveform.shape[1] > target_length:
+            waveform = waveform[:, :target_length]
+        elif waveform.shape[1] < target_length:
+            waveform = torch.nn.functional.pad(waveform, (0, target_length - waveform.shape[1]))
+
+        waveform = waveform.to(device)
+        mel_spec = amplitude_to_db(mel_transform(waveform)).unsqueeze(0)
+
+        # 4. MULTI-LABEL PREDICTION LOGIC
+        with torch.no_grad():
+            output = model(mel_spec)
+            probabilities = torch.sigmoid(output)[0]
+
+        results = []
+        
+        # Grab ALL genres and their raw probabilities
+        for i, prob in enumerate(probabilities):
+            results.append({
+                "genre": CLASSES[i],
+                "probability": prob.item()
+            })
+
+        # Sort them by highest confidence first
+        results.sort(key=lambda x: x["probability"], reverse=True)
+
+        # Always return the top_k (usually 5) predictions so the UI always has multiple bars!
+        return {"predictions": results[:top_k]}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run("infer_api:app", host="0.0.0.0", port=8000, reload=True)

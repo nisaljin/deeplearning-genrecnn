@@ -1,24 +1,105 @@
 "use client";
-
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Shuffle, Sparkles, Mic, Square, FileAudio, Disc3, Activity } from "lucide-react";
+import { Loader2, Shuffle, Sparkles, Mic, Square, FileAudio, Disc3, Activity, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Refined, high-end muted colors for a professional look
-const GENRE_COLORS = {
-  Electronic: "bg-cyan-400/80 shadow-[0_0_10px_rgba(34,211,238,0.3)]",
-  Rock: "bg-rose-500/80 shadow-[0_0_10px_rgba(244,63,94,0.3)]",
-  "Hip-Hop": "bg-amber-500/80 shadow-[0_0_10px_rgba(245,158,11,0.3)]",
-  Folk: "bg-emerald-400/80 shadow-[0_0_10px_rgba(52,211,153,0.3)]",
-  Pop: "bg-fuchsia-400/80 shadow-[0_0_10px_rgba(232,121,249,0.3)]",
-  Instrumental: "bg-indigo-400/80 shadow-[0_0_10px_rgba(129,140,248,0.3)]",
-  Experimental: "bg-violet-500/80 shadow-[0_0_10px_rgba(139,92,246,0.3)]",
-  International: "bg-yellow-400/80 shadow-[0_0_10px_rgba(250,204,21,0.3)]",
-  Classical: "bg-teal-400/80 shadow-[0_0_10px_rgba(45,212,191,0.3)]",
-  Jazz: "bg-orange-400/80 shadow-[0_0_10px_rgba(251,146,60,0.3)]",
-  default: "bg-zinc-400 shadow-[0_0_10px_rgba(161,161,170,0.3)]"
+// A master palette of high-end, glowing Tailwind colors
+const MASTER_PALETTE = [
+  "bg-cyan-400/80 shadow-[0_0_10px_rgba(34,211,238,0.3)]",
+  "bg-rose-500/80 shadow-[0_0_10px_rgba(244,63,94,0.3)]",
+  "bg-amber-500/80 shadow-[0_0_10px_rgba(245,158,11,0.3)]",
+  "bg-emerald-400/80 shadow-[0_0_10px_rgba(52,211,153,0.3)]",
+  "bg-fuchsia-400/80 shadow-[0_0_10px_rgba(232,121,249,0.3)]",
+  "bg-indigo-400/80 shadow-[0_0_10px_rgba(129,140,248,0.3)]",
+  "bg-violet-500/80 shadow-[0_0_10px_rgba(139,92,246,0.3)]",
+  "bg-yellow-400/80 shadow-[0_0_10px_rgba(250,204,21,0.3)]",
+  "bg-teal-400/80 shadow-[0_0_10px_rgba(45,212,191,0.3)]",
+  "bg-orange-400/80 shadow-[0_0_10px_rgba(251,146,60,0.3)]",
+  "bg-sky-400/80 shadow-[0_0_10px_rgba(56,189,248,0.3)]",
+  "bg-pink-500/80 shadow-[0_0_10px_rgba(236,72,153,0.3)]",
+  "bg-lime-400/80 shadow-[0_0_10px_rgba(163,230,53,0.3)]",
+  "bg-purple-500/80 shadow-[0_0_10px_rgba(168,85,247,0.3)]"
+];
+
+const PARENT_MAP = {
+  // === ELECTRONIC ===
+  "Ambient": "Electronic",
+  "Ambient Electronic": "Electronic",
+  "Chill-out": "Electronic",
+  "Chip Music": "Electronic",
+  "Chiptune": "Electronic",
+  "Dance": "Electronic",
+  "Downtempo": "Electronic",
+  "Drum & Bass": "Electronic",
+  "Dubstep": "Electronic",
+  "Glitch": "Electronic",
+  "House": "Electronic",
+  "IDM": "Electronic",
+  "Techno": "Electronic",
+  "Trip-Hop": "Electronic",
+
+  // === ROCK ===
+  "Garage": "Rock",
+  "Hardcore": "Rock",
+  "Indie-Rock": "Rock",
+  "Lo-Fi": "Rock",
+  "Loud-Rock": "Rock",
+  "Metal": "Rock",
+  "New Wave": "Rock",
+  "Noise-Rock": "Rock",
+  "Post-Punk": "Rock",
+  "Post-Rock": "Rock",
+  "Progressive": "Rock",
+  "Psych-Rock": "Rock",
+  "Punk": "Rock",
+  "Shoegaze": "Rock",
+
+  // === EXPERIMENTAL ===
+  "Avant-Garde": "Experimental",
+  "Drone": "Experimental",
+  "Electroacoustic": "Experimental",
+  "Field Recordings": "Experimental",
+  "Improv": "Experimental",
+  "Noise": "Experimental",
+  "Sound Collage": "Experimental",
+
+  // === HIP-HOP ===
+  "Alternative Hip-Hop": "Hip-Hop",
+  "Rap": "Hip-Hop",
+
+  // === POP ===
+  "Experimental Pop": "Pop",
+  "Power-Pop": "Pop",
+  "Synth Pop": "Pop",
+
+  // === FOLK ===
+  "Old-Time / Historic": "Folk",
+  "Singer-Songwriter": "Folk",
+
+  // === INTERNATIONAL ===
+  "Balkan": "International",
+  "Reggae - Dub": "International",
+
+  // === INSTRUMENTAL ===
+  "Soundtrack": "Instrumental"
 };
+
+// Dynamically assigns a consistent color to ANY string passed to it
+function getGenreColor(genreName) {
+  if (!genreName) return "bg-zinc-400 shadow-[0_0_10px_rgba(161,161,170,0.3)]";
+  
+  // Create a mathematical hash from the genre string
+  let hash = 0;
+  for (let i = 0; i < genreName.length; i++) {
+    hash = genreName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Pick a color from the palette based on the hash
+  const index = Math.abs(hash) % MASTER_PALETTE.length;
+  return MASTER_PALETTE[index];
+}
 
 // Sleek, Circular Radial Audio Visualizer
 function LiveAudioVisualizer({ stream }) {
@@ -93,37 +174,123 @@ function LiveAudioVisualizer({ stream }) {
 }
 
 function PredictionList({ predictions }) {
+  // State to track which Parent Genres are expanded in the UI
+  const [expandedGroups, setExpandedGroups] = useState({});
+
   if (!predictions?.length) return null;
+
+  // 1. Group sub-genres by their Global Parent Genre
+  const groupedPredictions = Object.values(
+    predictions.reduce((acc, p) => {
+      const parent = PARENT_MAP[p.genre] || "Uncategorized";
+      
+      if (!acc[parent]) {
+        acc[parent] = { parent, children: [], totalScore: 0 };
+      }
+      
+      acc[parent].children.push(p);
+      
+      // Add the sub-genre % to the Global %. Capped at 99.9%.
+      acc[parent].totalScore = Math.min(acc[parent].totalScore + p.probability, 0.999);
+      
+      return acc;
+    }, {})
+  ).sort((a, b) => b.totalScore - a.totalScore);
+
+  const toggleGroup = (parent) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [parent]: !prev[parent] // Flips from open to closed
+    }));
+  };
 
   return (
     <motion.div 
       initial={{ opacity: 0, height: 0, marginTop: 0 }} 
       animate={{ opacity: 1, height: "auto", marginTop: 24 }} 
       exit={{ opacity: 0, height: 0 }}
-      className="space-y-4 text-left p-6 bg-black/40 rounded-2xl border border-white/5 backdrop-blur-xl"
+      className="space-y-6 text-left p-6 bg-black/40 rounded-2xl border border-white/5 backdrop-blur-xl"
     >
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-2">
         <Activity className="w-4 h-4 text-zinc-400" />
-        <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-widest">Analysis Results</h3>
+        <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-widest">Global Analysis</h3>
       </div>
-      {predictions.map((p, idx) => {
-        const percent = (p.probability * 100).toFixed(1);
-        const colorClass = GENRE_COLORS[p.genre] || GENRE_COLORS.default;
-        
+
+      {/* 2. Map through the Parent Genres */}
+      {groupedPredictions.map((group, groupIdx) => {
+        const parentPercent = (group.totalScore * 100).toFixed(1);
+        const parentColorClass = getGenreColor(group.parent);
+        const isExpanded = !!expandedGroups[group.parent];
+
         return (
-          <div key={`${p.genre}-${idx}`} className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="font-medium text-zinc-200 capitalize tracking-wide">{p.genre}</span>
-              <span className="text-zinc-500 font-mono">{percent}%</span>
-            </div>
-            <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden backdrop-blur-sm">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${percent}%` }}
-                transition={{ duration: 1.2, delay: idx * 0.15, ease: [0.16, 1, 0.3, 1] }} 
-                className={cn("h-full rounded-full", colorClass)}
-              />
-            </div>
+          <div key={group.parent} className="flex flex-col bg-zinc-900/30 p-4 rounded-xl border border-white/5 transition-colors hover:bg-zinc-900/50">
+            
+            {/* --- GLOBAL GENRE HEADER (CLICKABLE) --- */}
+            <button 
+              onClick={() => toggleGroup(group.parent)}
+              className="w-full space-y-2 text-left outline-none cursor-pointer group-btn"
+            >
+              <div className="flex justify-between items-end">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white tracking-wider uppercase text-sm">{group.parent}</span>
+                  <ChevronDown 
+                    className={cn(
+                      "w-4 h-4 text-zinc-500 transition-transform duration-300", 
+                      isExpanded ? "rotate-180" : "rotate-0"
+                    )} 
+                  />
+                </div>
+                <span className="text-zinc-300 font-mono text-sm">{parentPercent}%</span>
+              </div>
+              
+              {/* Parent Progress Bar */}
+              <div className="h-2 w-full bg-zinc-950 rounded-full overflow-hidden shadow-inner">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${parentPercent}%` }}
+                  transition={{ duration: 1.0, delay: groupIdx * 0.1, ease: "easeOut" }} 
+                  className={cn("h-full rounded-full", parentColorClass)}
+                />
+              </div>
+            </button>
+
+            {/* --- SUB-GENRE CHILDREN (SLIDES OPEN) --- */}
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="pt-4 pb-1 space-y-2 pl-2 border-l-2 border-zinc-800 ml-1">
+                    {group.children.sort((a, b) => b.probability - a.probability).map((child, childIdx) => {
+                      const childPercent = (child.probability * 100).toFixed(1);
+                      
+                      return (
+                        <div key={child.genre} className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-medium text-zinc-400 capitalize">{child.genre}</span>
+                            <span className="text-zinc-500 font-mono">{childPercent}%</span>
+                          </div>
+                          {/* Child Progress Bar */}
+                          <div className="h-1 w-full bg-zinc-950 rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${childPercent}%` }}
+                              transition={{ duration: 0.6, ease: "easeOut" }} 
+                              className="h-full rounded-full bg-zinc-500"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
           </div>
         );
       })}

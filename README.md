@@ -2,6 +2,7 @@
 
 This project builds a deep-learning music genre classifier on `fma_large` using labels/splits from `fma_metadata/tracks.csv`.
 It includes:
+
 - a CNN training workflow (`genre_classifier_workflow.ipynb`, `train_genre_cnn.py`)
 - a batch inference artifact (`predict_genre.py`)
 
@@ -190,6 +191,7 @@ The script reports:
 - Macro F1
 
 Recommended for report consistency:
+
 - report both validation and test metrics
 - include class-wise performance and confusion matrix discussion
 - include at least one simple baseline (for example majority-class predictor)
@@ -208,6 +210,7 @@ Use the best validation configuration and report test metrics once.
 ## Model Comparison Plan
 
 Use CNN-only model comparison (valid for project requirements) with:
+
 - `cnn_standard_base` (simpler settings)
 - `cnn_residual` (ResCNN-style variant)
 - `cnn_standard_aug` (`standard_cnn` architecture)
@@ -219,6 +222,7 @@ bash scripts/run_cnn_comparison.sh
 ```
 
 Minimum comparison table columns:
+
 - model name
 - key hyperparameters
 - validation macro-F1
@@ -228,6 +232,7 @@ Minimum comparison table columns:
 - train/inference cost notes
 
 For each run, read metrics from:
+
 - `<output_dir>/summary.json`
 - `<output_dir>/history.csv`
 
@@ -240,6 +245,7 @@ For each run, read metrics from:
 
 Current artifact is a batch inference script (`predict_genre.py`).
 If deployed as a service, track:
+
 - latency (P50/P95/P99)
 - throughput
 - prediction drift (class distribution shift over time)

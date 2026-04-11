@@ -5,7 +5,8 @@ const INFER_API_URL = process.env.INFER_API_URL || "http://127.0.0.1:8000";
 
 function trackPathFromId(trackId) {
   const six = String(trackId).padStart(6, "0");
-  return path.join(process.cwd(), "..", "fma_large", six.slice(0, 3), `${six}.mp3`);
+  // NOTE: Changed this to fma_medium to match your Python script!
+  return path.join(process.cwd(), "..", "fma_medium", six.slice(0, 3), `${six}.mp3`);
 }
 
 export async function POST(request) {
@@ -43,7 +44,8 @@ export async function POST(request) {
     }
 
     // Forward the FormData to the Python FastAPI backend
-    const res = await fetch(`${INFER_API_URL}/predict?top_k=5`, {
+    // Notice we grab top_k=5 so it doesn't dilute the percentages with 0.01% micro-guesses
+    const res = await fetch(`${INFER_API_URL}/predict?top_k=42`, {
       method: "POST",
       body: formToSend,
       cache: "no-store"
@@ -54,6 +56,24 @@ export async function POST(request) {
     if (!res.ok) {
       return Response.json({ error: data?.detail || data?.error || "Model prediction failed." }, { status: res.status });
     }
+
+    // ==========================================
+    // THE FIX: COMPOSITIONAL NORMALIZATION
+    // ==========================================
+    if (data.predictions && Array.isArray(data.predictions)) {
+      // 1. Calculate the sum of all raw probabilities returned by the model
+      const totalSum = data.predictions.reduce((sum, p) => sum + p.probability, 0);
+      
+      // 2. Mathematically scale them so the entire pie equals exactly 1.0 (100%)
+      if (totalSum > 0) {
+        data.predictions = data.predictions.map(p => ({
+          ...p,
+          // Divide by the total sum to get the relative footprint
+          probability: p.probability / totalSum
+        }));
+      }
+    }
+    // ==========================================
 
     return Response.json(data, { status: 200 });
   } catch (error) {
