@@ -2,11 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 const INFER_API_URL = process.env.INFER_API_URL || "http://127.0.0.1:8000";
+const DATASET=process.env.DATASET || "fma_large";
 
 function trackPathFromId(trackId) {
   const six = String(trackId).padStart(6, "0");
   // NOTE: Changed this to fma_medium to match your Python script!
-  return path.join(process.cwd(), "..", "fma_medium", six.slice(0, 3), `${six}.mp3`);
+  return path.join(process.cwd(), "..", DATASET, six.slice(0, 3), `${six}.mp3`);
 }
 
 export async function POST(request) {

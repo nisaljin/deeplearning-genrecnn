@@ -57,13 +57,13 @@ export default function Home() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-white/10 bg-white/[0.02] backdrop-blur-md"
         >
-          <div className="relative flex h-2 w-2">
+          {/* <div className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-40" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-white/80" />
           </div>
           <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-[0.2em]">
             Music Genre Classification using Convolutional Neural Networks
-          </span>
+          </span> */}
         </motion.div>
 
         {/* Hero Typography */}
