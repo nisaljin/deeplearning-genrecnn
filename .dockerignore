@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+
+# Jupyter
+*.ipynb
+.ipynb_checkpoints/
+
+# Environment
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Frontend (no need to send to backend build)
+frontend/
+
+# Docker files themselves
+docker/
+docker-compose.yml
+
+# OS
+.DS_Store
+Thumbs.db
