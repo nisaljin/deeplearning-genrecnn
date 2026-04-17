@@ -1,10 +1,15 @@
-# FMA Genre Classification (CNN)
+# 🎵 FMA Genre Classification (CNN) 🎵
 
 This project builds a deep-learning music genre classifier on `fma_large` using labels/splits from `fma_metadata/tracks.csv`.
 It includes:
 
 - a CNN training workflow (`genre_classifier_workflow.ipynb`, `train_genre_cnn.py`)
 - a batch inference artifact (`predict_genre.py`)
+
+## Live Demo
+
+[![App Runner](https://img.shields.io/badge/App%20Runner-Live-green)](https://crkasmvnvk.ap-southeast-1.awsapprunner.com/)
+[![ECR](https://img.shields.io/badge/ECR-Private-blue)](https://console.aws.amazon.com/ecr/private)
 
 ## Dataset Layout
 
@@ -312,3 +317,22 @@ If deployed as a service, track:
 - throughput
 - prediction drift (class distribution shift over time)
 - data drift (audio duration/sample-rate/loudness distribution changes)
+
+## CI/CD Workflows
+Deployments are triggered automatically on push to main when relevant files change.
+
+Frontend (`.github/workflows/deploy-frontend.yml`) — triggered by changes to:
+
+- `frontend/**`
+- `docker/frontend.Dockerfile`
+
+
+Backend (`.github/workflows/deploy-backend.yml`) — triggered by changes to:
+
+- `infer_api.py`
+- `requirements.txt`
+- `fma_classes.json`
+- `outputs/**`
+- `docker/backend.Dockerfile`
+
+Both workflows can also be triggered manually via **GitHub → Actions → Run workflow**.
