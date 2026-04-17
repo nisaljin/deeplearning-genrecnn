@@ -7,6 +7,7 @@ COPY requirements.txt .
 
 # Install system dependencies if needed
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
     build-essential \
   && rm -rf /var/lib/apt/lists/*
 

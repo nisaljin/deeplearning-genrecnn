@@ -1,5 +1,8 @@
-import io
 import json
+import os
+import tempfile
+
+import librosa
 import torch
 import torchaudio
 import uvicorn
@@ -88,7 +91,14 @@ async def predict(file: UploadFile = File(...), top_k: int | None = 5) -> dict:
 
     try:
         audio_bytes = await file.read()
-        waveform, sr = torchaudio.load(io.BytesIO(audio_bytes))
+        with tempfile.NamedTemporaryFile(suffix=os.path.splitext(filename)[1] or ".audio", delete=True) as tmp:
+            tmp.write(audio_bytes)
+            tmp.flush()
+            waveform_np, sr = librosa.load(tmp.name, sr=None, mono=False)
+
+        waveform = torch.as_tensor(waveform_np)
+        if waveform.ndim == 1:
+            waveform = waveform.unsqueeze(0)
 
         # Audio preprocessing
         if sr != 22050:
