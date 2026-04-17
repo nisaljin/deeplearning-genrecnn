@@ -24,8 +24,14 @@
 
 * { @apply border-border; }
 
+html,
 body {
-  @apply bg-background text-foreground;
+  min-height: 100%;
+  background-color: #000;
+}
+
+body {
+  @apply bg-black text-zinc-100;
   background-image: radial-gradient(circle at 20% 10%, rgba(56, 189, 248, 0.12), transparent 30%),
     radial-gradient(circle at 80% 90%, rgba(37, 99, 235, 0.12), transparent 40%);
 }
