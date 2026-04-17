@@ -426,7 +426,6 @@ export function AudioUploadCard({ className }) {
 
   return (
     <motion.div
-      layout
       className={cn("relative w-full rounded-[2rem] bg-zinc-950/60 backdrop-blur-3xl border border-white/10 shadow-2xl overflow-hidden", className)}
     >
       {/* Very faint pure white gradient glow, stripping out the pinks/purples */}
@@ -554,7 +553,6 @@ export function AudioUploadCard({ className }) {
         {/* Minimalist High-Contrast Analyze Button */}
         {((mode === "dataset" && sample) || (mode === "record" && recordedAudio && !isRecording)) && (
           <motion.button 
-            layout
             whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
             onClick={runPrediction} disabled={predicting} 
             className="mt-8 w-full flex items-center justify-center gap-3 py-3.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold transition-all shadow-lg disabled:opacity-50"

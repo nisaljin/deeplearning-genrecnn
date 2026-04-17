@@ -63,6 +63,8 @@ model = MultiGenreCNN(NUM_CLASSES).to(device)
 try:
     # Use map_location to ensure it loads on a Mac/CPU even if trained on a GPU
     model.load_state_dict(torch.load("outputs/best_fma_multilabel.pt", map_location=device))
+    # model.load_state_dict(torch.load("outputs/legacy/best_model.pt", map_location=device))
+
     model.eval()
     print("✅ Multi-Label Model loaded successfully.")
 except Exception as e:
