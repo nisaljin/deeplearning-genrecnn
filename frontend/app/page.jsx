@@ -55,7 +55,7 @@ export default function Home() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-white/10 bg-white/[0.02] backdrop-blur-md"
+          className="inline-flex items-center gap-2.5 px-4 py-1.5 border-white/10 bg-white/[0.02] backdrop-blur-md"
         >
           {/* <div className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-40" />
