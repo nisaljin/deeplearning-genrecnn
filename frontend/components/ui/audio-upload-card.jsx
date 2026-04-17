@@ -405,8 +405,12 @@ export function AudioUploadCard({ className }) {
       setPredicting(true); setError(""); setPredictions([]);
       let res;
       if (mode === "dataset") {
-        if (!sample?.trackId) return;
-        res = await fetch("/api/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trackId: sample.trackId }) });
+        if (!sample?.sampleId) return;
+        res = await fetch("/api/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sampleId: sample.sampleId })
+        });
       } else {
         if (!recordedAudio?.blob) return;
         const formData = new FormData();
@@ -467,7 +471,7 @@ export function AudioUploadCard({ className }) {
                     <Disc3 className={cn("w-5 h-5", loadingSample ? "text-zinc-500" : "text-zinc-300")} />
                   </motion.div>
                   <div>
-                    <p className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase mb-1">Track #{sample?.trackId || "---"}</p>
+                    <p className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase mb-1">Sample ID {sample?.sampleId ? sample.sampleId.slice(0, 8) : "---"}</p>
                     <p className="font-medium text-zinc-200 text-base leading-none">{loadingSample ? "Querying database..." : sample?.filename || "Unknown Track"}</p>
                   </div>
                 </div>
@@ -483,7 +487,7 @@ export function AudioUploadCard({ className }) {
 
               {sample && (
                 <div className="relative rounded-2xl overflow-hidden border border-white/5 bg-black/40 p-2 backdrop-blur-xl">
-                  <audio className="w-full h-10 outline-none [&::-webkit-media-controls-panel]:bg-transparent [&::-webkit-media-controls-current-time-display]:text-zinc-300 [&::-webkit-media-controls-time-remaining-display]:text-zinc-300" controls src={`/api/audio/${sample.trackId}`} />
+                  <audio className="w-full h-10 outline-none [&::-webkit-media-controls-panel]:bg-transparent [&::-webkit-media-controls-current-time-display]:text-zinc-300 [&::-webkit-media-controls-time-remaining-display]:text-zinc-300" controls src={`/api/audio/${sample.sampleId}`} />
                 </div>
               )}
             </motion.div>

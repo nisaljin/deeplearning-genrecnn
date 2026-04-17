@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { resolveSampleFromId } from "@/lib/sample-audio";
 
 const INFER_API_URL = process.env.INFER_API_URL || "http://127.0.0.1:8000";
-const DATASET=process.env.DATASET || "fma_large";
+const DATASET = process.env.DATASET || "fma_large";
 
 function trackPathFromId(trackId) {
   const six = String(trackId).padStart(6, "0");
@@ -25,23 +26,35 @@ export async function POST(request) {
       }
       formToSend.append("file", file, file.name);
     } 
-    // 2. Handle Dataset Track ID Uploads
+    // 2. Handle Sample ID uploads from frontend/public/sample-audio
+    //    and preserve legacy numeric trackId support for local FMA usage.
     else {
       const body = await request.json();
-      const trackId = Number.parseInt(body?.trackId, 10);
-      
-      if (!Number.isFinite(trackId)) {
-        return Response.json({ error: "Invalid track id." }, { status: 400 });
-      }
 
-      const p = trackPathFromId(trackId);
-      if (!fs.existsSync(p)) {
-        return Response.json({ error: "Audio file not found." }, { status: 404 });
-      }
+      if (body?.sampleId) {
+        const sample = resolveSampleFromId(body.sampleId);
+        if (!sample) {
+          return Response.json({ error: "Sample audio file not found." }, { status: 404 });
+        }
 
-      const bytes = fs.readFileSync(p);
-      const blob = new Blob([bytes], { type: "audio/mpeg" });
-      formToSend.append("file", blob, path.basename(p));
+        const bytes = fs.readFileSync(sample.absolutePath);
+        const blob = new Blob([bytes], { type: "audio/mpeg" });
+        formToSend.append("file", blob, sample.filename);
+      } else {
+        const trackId = Number.parseInt(body?.trackId, 10);
+        if (!Number.isFinite(trackId)) {
+          return Response.json({ error: "Invalid sampleId or trackId." }, { status: 400 });
+        }
+
+        const p = trackPathFromId(trackId);
+        if (!fs.existsSync(p)) {
+          return Response.json({ error: "Audio file not found." }, { status: 404 });
+        }
+
+        const bytes = fs.readFileSync(p);
+        const blob = new Blob([bytes], { type: "audio/mpeg" });
+        formToSend.append("file", blob, path.basename(p));
+      }
     }
 
     // Forward the FormData to the Python FastAPI backend
