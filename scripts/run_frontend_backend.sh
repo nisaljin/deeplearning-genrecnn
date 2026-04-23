@@ -11,7 +11,8 @@ else
 fi
 
 # Avoid inheriting broken Node runtime flags (e.g. invalid --localstorage-file)
-FRONTEND_CMD='env -u NODE_OPTIONS npm run dev'
+# and force the local backend URL for the Next route handler.
+FRONTEND_CMD='env -u NODE_OPTIONS INFER_API_URL=http://127.0.0.1:8000 npm run dev'
 
 run_on_macos() {
   osascript - "$PROJECT_ROOT" "$FRONTEND_DIR" "$BACKEND_CMD" "$FRONTEND_CMD" <<'EOF'

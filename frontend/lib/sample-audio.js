@@ -14,6 +14,11 @@ const MIME_BY_EXTENSION = {
   ".weba": "audio/webm"
 };
 
+const EXCLUDED_SAMPLE_RELATIVE_PATHS = new Set([
+  path.join("prominent", "experimental", "000137.mp3"),
+  path.join("prominent", "experimental", "000138.mp3")
+]);
+
 export function getSampleAudioDir() {
   return path.join(process.cwd(), "public", "sample-audio");
 }
@@ -32,6 +37,7 @@ function walkAudioFiles(rootDir, subDir = "") {
 
     const ext = path.extname(entry.name).toLowerCase();
     if (!AUDIO_EXTENSIONS.has(ext)) continue;
+    if (EXCLUDED_SAMPLE_RELATIVE_PATHS.has(relPath)) continue;
 
     const sampleId = Buffer.from(relPath).toString("base64url");
     const encodedUrlPath = relPath
@@ -56,6 +62,39 @@ export function listSampleAudioFiles() {
   return walkAudioFiles(sampleDir).sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 }
 
+function splitSegments(relativePath) {
+  return relativePath
+    .split(path.sep)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+const CURATED_TIERS = new Set(["prominent", "minority"]);
+
+export function listCuratedGenreAudioFiles() {
+  const allSamples = listSampleAudioFiles();
+  return allSamples
+    .map((sample) => {
+      const segments = splitSegments(sample.relativePath);
+      if (segments.length < 3) return null;
+      const tier = segments[0];
+      if (!CURATED_TIERS.has(tier)) return null;
+      const genre = segments[1];
+      if (!genre) return null;
+      return {
+        ...sample,
+        tier,
+        genre
+      };
+    })
+    .filter(Boolean);
+}
+
+export function listBestGenreAudioFiles() {
+  // Backward compatible alias used by existing API routes.
+  return listCuratedGenreAudioFiles();
+}
+
 export function resolveSampleFromId(sampleId) {
   if (!sampleId || typeof sampleId !== "string") return null;
 
@@ -67,6 +106,7 @@ export function resolveSampleFromId(sampleId) {
   }
 
   if (!relativePath || relativePath.includes("\0")) return null;
+  if (EXCLUDED_SAMPLE_RELATIVE_PATHS.has(relativePath)) return null;
 
   const sampleDir = getSampleAudioDir();
   const absolutePath = path.resolve(sampleDir, relativePath);

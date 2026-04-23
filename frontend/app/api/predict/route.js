@@ -68,6 +68,15 @@ export async function POST(request) {
     const data = await res.json();
     
     if (!res.ok) {
+      const upstreamEndpoint = `${INFER_API_URL}/predict`;
+      if (res.status === 404) {
+        return Response.json(
+          {
+            error: `Upstream inference endpoint not found at ${upstreamEndpoint}. Check INFER_API_URL and backend startup.`
+          },
+          { status: 502 }
+        );
+      }
       return Response.json({ error: data?.detail || data?.error || "Model prediction failed." }, { status: res.status });
     }
 
