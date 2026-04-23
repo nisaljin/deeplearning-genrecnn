@@ -10,6 +10,7 @@ on:
       - 'fma_classes.json'
       - 'outputs/best_fma_multilabel.pt'
       - 'docker/backend.Dockerfile'
+  workflow_dispatch:
 
 jobs:
   deploy:
